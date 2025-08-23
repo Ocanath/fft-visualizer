@@ -7,7 +7,7 @@ import scipy.fft
 class FFTVisualizer:
     def __init__(self):
         # Parameters
-        self.fs = 3000  # Sampling frequency (Hz)
+        self.fs = 1000  # Sampling frequency (Hz)
         self.T = 1.0    # Duration (seconds)
         self.n_periods = 2  # Number of periods to show in time domain
         
@@ -27,6 +27,9 @@ class FFTVisualizer:
         """Update N and time array when fs or T changes"""
         self.N = int(self.fs * self.T)  # Number of samples
         self.t = np.linspace(0, self.T, self.N, endpoint=False)  # Time array
+        # Create high-resolution time array for smooth plotting (10x upsampled)
+        self.N_hires = self.N * 10
+        self.t_hires = np.linspace(0, self.T, self.N_hires, endpoint=False)
     
     def setup_plot(self):
         # Create figure and subplots
@@ -65,8 +68,13 @@ class FFTVisualizer:
         self.button.on_clicked(self.on_button_click)
         
         # Initialize plot lines
-        self.line1, = self.ax1.plot([], [], 'b-', linewidth=2)
+        self.line_continuous, = self.ax1.plot([], [], 'b-', linewidth=1.5, alpha=0.7, label='Continuous signal')
+        self.line_samples, = self.ax1.plot([], [], 'ro', markersize=6, label='Sampled points')
+        self.stems = []  # Will hold vertical line segments
         self.line2, = self.ax2.plot([], [], 'r-', linewidth=2)
+        
+        # Add legend to time domain plot
+        self.ax1.legend(loc='upper right')
     
     def parse_expression(self, expr_text):
         """Parse symbolic expression using SymPy"""
@@ -117,10 +125,35 @@ class FFTVisualizer:
         
         return max(max_freq, 1)  # Ensure minimum frequency of 1 Hz
     
+    def evaluate_expression_hires(self, expr_text):
+        """Evaluate expression on high-resolution time array for smooth plotting"""
+        try:
+            # Define symbolic variable
+            t_sym = sp.Symbol('t')
+            
+            # Parse the expression
+            expr = sp.sympify(expr_text)
+            
+            # Convert to numpy function
+            func = sp.lambdify(t_sym, expr, ['numpy', 'scipy'])
+            
+            # Evaluate on high-resolution time array
+            signal_hires = func(self.t_hires)
+            
+            return np.real(signal_hires)  # Take real part in case of complex results
+            
+        except Exception as e:
+            print(f"Error parsing expression '{expr_text}': {e}")
+            # Return default signal on error
+            return np.sin(2 * np.pi * 10 * self.t_hires)
+    
     def update_plot(self, expr_text):
         """Update both time and frequency domain plots"""
-        # Parse expression and generate signal
+        # Parse expression and generate sampled signal
         signal = self.parse_expression(expr_text)
+        
+        # Generate high-resolution signal for smooth plotting
+        signal_hires = self.evaluate_expression_hires(expr_text)
         
         # Compute FFT
         freq, magnitude = self.compute_fft(signal)
@@ -129,9 +162,30 @@ class FFTVisualizer:
         max_freq = self.find_max_frequency(freq, magnitude)
         time_window = self.n_periods / max_freq  # Show n periods of max frequency
         
-        # Update time domain plot with limited time window
+        # Create masks for time window
         time_mask = self.t <= time_window
-        self.line1.set_data(self.t[time_mask], signal[time_mask])
+        time_mask_hires = self.t_hires <= time_window
+        
+        # Update continuous signal line (high-resolution)
+        self.line_continuous.set_data(self.t_hires[time_mask_hires], signal_hires[time_mask_hires])
+        
+        # Update sampled points (scatter plot)
+        self.line_samples.set_data(self.t[time_mask], signal[time_mask])
+        
+        # Clear previous stems and create new ones
+        for stem in self.stems:
+            stem.remove()
+        self.stems.clear()
+        
+        # Add vertical lines (stems) from x-axis to sample points
+        t_display = self.t[time_mask]
+        signal_display = signal[time_mask]
+        for i in range(len(t_display)):
+            stem = self.ax1.plot([t_display[i], t_display[i]], [0, signal_display[i]], 
+                               'r-', alpha=0.6, linewidth=1)[0]
+            self.stems.append(stem)
+        
+        # Set axis limits and scaling
         self.ax1.set_xlim(0, time_window)
         self.ax1.relim()
         self.ax1.autoscale_view(scalex=False)  # Don't autoscale x-axis
