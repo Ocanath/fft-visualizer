@@ -10,6 +10,7 @@ class FFTVisualizer:
         self.fs = 3000  # Sampling frequency (Hz)
         self.T = 1.0    # Duration (seconds)
         self.N = int(self.fs * self.T)  # Number of samples
+        self.n_periods = 2  # Number of periods to show in time domain
         
         # Create time array
         self.t = np.linspace(0, self.T, self.N, endpoint=False)
@@ -87,6 +88,21 @@ class FFTVisualizer:
         
         return fft_freq[positive_freq_idx], fft_magnitude[positive_freq_idx]
     
+    def find_max_frequency(self, freq, magnitude):
+        """Find the frequency with maximum magnitude"""
+        if len(magnitude) == 0:
+            return 10  # Default frequency
+        
+        # Find frequency with maximum magnitude (ignore DC component)
+        non_dc_idx = freq > 1  # Ignore frequencies below 1 Hz
+        if np.any(non_dc_idx):
+            max_idx = np.argmax(magnitude[non_dc_idx])
+            max_freq = freq[non_dc_idx][max_idx]
+        else:
+            max_freq = freq[np.argmax(magnitude)] if len(freq) > 0 else 10
+        
+        return max(max_freq, 1)  # Ensure minimum frequency of 1 Hz
+    
     def update_plot(self, expr_text):
         """Update both time and frequency domain plots"""
         # Parse expression and generate signal
@@ -95,10 +111,16 @@ class FFTVisualizer:
         # Compute FFT
         freq, magnitude = self.compute_fft(signal)
         
-        # Update time domain plot
-        self.line1.set_data(self.t, signal)
+        # Find maximum frequency and calculate time window
+        max_freq = self.find_max_frequency(freq, magnitude)
+        time_window = self.n_periods / max_freq  # Show n periods of max frequency
+        
+        # Update time domain plot with limited time window
+        time_mask = self.t <= time_window
+        self.line1.set_data(self.t[time_mask], signal[time_mask])
+        self.ax1.set_xlim(0, time_window)
         self.ax1.relim()
-        self.ax1.autoscale_view()
+        self.ax1.autoscale_view(scalex=False)  # Don't autoscale x-axis
         
         # Update frequency domain plot
         self.line2.set_data(freq, magnitude)
