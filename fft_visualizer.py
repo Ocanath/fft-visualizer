@@ -9,11 +9,10 @@ class FFTVisualizer:
         # Parameters
         self.fs = 3000  # Sampling frequency (Hz)
         self.T = 1.0    # Duration (seconds)
-        self.N = int(self.fs * self.T)  # Number of samples
         self.n_periods = 2  # Number of periods to show in time domain
         
-        # Create time array
-        self.t = np.linspace(0, self.T, self.N, endpoint=False)
+        # Calculate derived parameters
+        self.update_sampling_parameters()
         
         # Default expression
         self.default_expr = "sin(t*2*pi*10)"
@@ -24,10 +23,15 @@ class FFTVisualizer:
         # Initial plot
         self.update_plot(self.default_expr)
     
+    def update_sampling_parameters(self):
+        """Update N and time array when fs or T changes"""
+        self.N = int(self.fs * self.T)  # Number of samples
+        self.t = np.linspace(0, self.T, self.N, endpoint=False)  # Time array
+    
     def setup_plot(self):
         # Create figure and subplots
         self.fig, (self.ax1, self.ax2) = plt.subplots(2, 1, figsize=(12, 10))
-        plt.subplots_adjust(bottom=0.15)  # Make room for widgets
+        plt.subplots_adjust(bottom=0.25)  # Make room for more widgets
         
         # Setup axes
         self.ax1.set_xlabel('Time (s)')
@@ -41,12 +45,22 @@ class FFTVisualizer:
         self.ax2.grid(True)
         
         # Create text box for expression input
-        ax_textbox = plt.axes([0.15, 0.05, 0.6, 0.04])
+        ax_textbox = plt.axes([0.15, 0.12, 0.6, 0.04])
         self.textbox = TextBox(ax_textbox, 'Expression: ', initial=self.default_expr)
         self.textbox.on_submit(self.on_text_submit)
         
+        # Create text box for sampling frequency
+        ax_fs_textbox = plt.axes([0.15, 0.07, 0.25, 0.04])
+        self.fs_textbox = TextBox(ax_fs_textbox, 'Fs (Hz): ', initial=str(self.fs))
+        self.fs_textbox.on_submit(self.on_fs_submit)
+        
+        # Create text box for time duration
+        ax_t_textbox = plt.axes([0.5, 0.07, 0.25, 0.04])
+        self.t_textbox = TextBox(ax_t_textbox, 'T (s): ', initial=str(self.T))
+        self.t_textbox.on_submit(self.on_t_submit)
+        
         # Create update button
-        ax_button = plt.axes([0.8, 0.05, 0.1, 0.04])
+        ax_button = plt.axes([0.8, 0.07, 0.1, 0.04])
         self.button = Button(ax_button, 'Update')
         self.button.on_clicked(self.on_button_click)
         
@@ -135,11 +149,43 @@ class FFTVisualizer:
         self.fig.canvas.draw()
     
     def on_text_submit(self, text):
-        """Handle text box submission"""
+        """Handle expression text box submission"""
         self.update_plot(text)
     
+    def on_fs_submit(self, text):
+        """Handle sampling frequency text box submission"""
+        try:
+            new_fs = float(text)
+            if new_fs > 0:
+                self.fs = new_fs
+                self.update_sampling_parameters()
+                current_expr = self.textbox.text
+                self.update_plot(current_expr)
+            else:
+                print("Sampling frequency must be positive")
+        except ValueError:
+            print(f"Invalid sampling frequency: {text}")
+    
+    def on_t_submit(self, text):
+        """Handle time duration text box submission"""
+        try:
+            new_T = float(text)
+            if new_T > 0:
+                self.T = new_T
+                self.update_sampling_parameters()
+                current_expr = self.textbox.text
+                self.update_plot(current_expr)
+            else:
+                print("Time duration must be positive")
+        except ValueError:
+            print(f"Invalid time duration: {text}")
+    
     def on_button_click(self, event):
-        """Handle button click"""
+        """Handle button click - update all parameters"""
+        # Update fs and T from text boxes
+        self.on_fs_submit(self.fs_textbox.text)
+        self.on_t_submit(self.t_textbox.text)
+        # Update plot with current expression
         current_text = self.textbox.text
         self.update_plot(current_text)
     
