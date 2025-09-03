@@ -61,8 +61,8 @@ def main():
     
     # Plot FFT magnitude spectrum
     fftpos = fft_freq[positive_freq_idx]
-    fftmag_mv = fft_magnitude[positive_freq_idx]*1000
-    ax2.plot(fftpos, fftmag_mv)
+    fftmag = fft_magnitude[positive_freq_idx]
+    ax2.plot(fftpos, fftmag*1000)
     ax2.set_xlabel('Frequency (Hz)')
     ax2.set_ylabel('Magnitude (mV)')
     ax2.set_title('FFT Magnitude Spectrum')
