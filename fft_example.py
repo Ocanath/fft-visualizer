@@ -19,6 +19,11 @@ def main():
     print(f"Mint: {np.min(t)}, maxt: {np.max(t)}")
     signal = mat_data[data_key].flatten()
     
+    #example test signal
+    # t = np.linspace(0,10,100000)
+    # signal = 5 + np.sin(t*2*np.pi*1000)*3
+
+
     # Calculate N and sampling frequency from the data
     N = len(signal)
     T_total = t[-1] - t[0]  # Total time duration
@@ -62,8 +67,9 @@ def main():
     ax2.set_ylabel('Magnitude (mV)')
     ax2.set_title('FFT Magnitude Spectrum')
     ax2.set_ylim(0,30)
+    ax2.set_xlim(0, 15)  # Focus on low frequencies
     ax2.grid(True)
-    # ax2.set_xlim(0, 50)  # Focus on low frequencies
+    
     
     plt.tight_layout()
     plt.show()
