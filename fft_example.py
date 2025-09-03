@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 #from scipy.fft import fft, fftfreq
 import scipy as scipy
 import scipy.io
+import scipy.signal
 
 def main():
     # Load .mat file
@@ -13,6 +14,9 @@ def main():
     data_key = [k for k in mat_data.keys() if k.rstrip('\x00') == 'C1_data'][0]
     
     t = mat_data[time_key].flatten()
+    print(f"Mint: {np.min(t)}, maxt: {np.max(t)}")
+    t = t - t[0]
+    print(f"Mint: {np.min(t)}, maxt: {np.max(t)}")
     signal = mat_data[data_key].flatten()
     
     # Calculate N and sampling frequency from the data
@@ -20,17 +24,25 @@ def main():
     T_total = t[-1] - t[0]  # Total time duration
     fs = (N - 1) / T_total  # Sampling frequency
     
+    print(f"Vppmax data: {np.max(signal) - np.min(signal)}")
     print(f"N (number of samples): {N}")
     print(f"Total duration: {T_total:.6f} s")
     print(f"Sampling frequency: {fs:.2f} Hz")
     
+    # Apply Hanning window
+    window = scipy.signal.windows.hann(N, False)
+    windowed_signal = signal * window
+    
     # Compute FFT
-    fft_values = scipy.fft.fft(signal)
+    fft_values = scipy.fft.fft(windowed_signal)
     fft_freq = scipy.fft.fftfreq(N, 1/fs)
     
     # Take only positive frequencies
     positive_freq_idx = fft_freq > 0 
-    fft_magnitude = np.abs(fft_values) * 2 / N  #absolute value, and scale to volts
+    
+    # Calculate coherent gain for Hanning window and apply correct scaling
+    coherent_gain = np.mean(window)  # ~0.5 for Hanning window
+    fft_magnitude = np.abs(fft_values) * 2 / (N * coherent_gain)  # Compensate for window gain
     
     # Create plots
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -43,10 +55,13 @@ def main():
     ax1.grid(True)
     
     # Plot FFT magnitude spectrum
-    ax2.plot(fft_freq[positive_freq_idx], fft_magnitude[positive_freq_idx])
+    fftpos = fft_freq[positive_freq_idx]
+    fftmag_mv = fft_magnitude[positive_freq_idx]*1000
+    ax2.plot(fftpos, fftmag_mv)
     ax2.set_xlabel('Frequency (Hz)')
-    ax2.set_ylabel('Magnitude (Volts)')
+    ax2.set_ylabel('Magnitude (mV)')
     ax2.set_title('FFT Magnitude Spectrum')
+    ax2.set_ylim(0,30)
     ax2.grid(True)
     # ax2.set_xlim(0, 50)  # Focus on low frequencies
     
