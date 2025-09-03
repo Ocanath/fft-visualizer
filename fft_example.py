@@ -2,19 +2,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 #from scipy.fft import fft, fftfreq
 import scipy as scipy
+import scipy.io
 
 def main():
-    # Parameters
-    fs = 1000  # Sampling frequency (Hz)
-    T = 1.0    # Duration (seconds)
-    N = int(fs * T)  # Number of samples
+    # Load .mat file
+    mat_data = scipy.io.loadmat('SDS814X_HD_Matlab_C1_17.mat')
     
-    # Create time array
-    t = np.linspace(0, T, N, endpoint=False)
+    # Extract time and signal data (keys are zero-padded)
+    time_key = [k for k in mat_data.keys() if k.rstrip('\x00') == 'C1_time'][0]
+    data_key = [k for k in mat_data.keys() if k.rstrip('\x00') == 'C1_data'][0]
     
-    # Create signal: sin(10*2*pi*t)
-    frequency = 10  # Hz
-    signal = np.sin(10 * 2 * np.pi * t)
+    t = mat_data[time_key].flatten()
+    signal = mat_data[data_key].flatten()
+    
+    # Calculate N and sampling frequency from the data
+    N = len(signal)
+    T_total = t[-1] - t[0]  # Total time duration
+    fs = (N - 1) / T_total  # Sampling frequency
+    
+    print(f"N (number of samples): {N}")
+    print(f"Total duration: {T_total:.6f} s")
+    print(f"Sampling frequency: {fs:.2f} Hz")
     
     # Compute FFT
     fft_values = scipy.fft.fft(signal)
@@ -31,7 +39,7 @@ def main():
     ax1.plot(t, signal)
     ax1.set_xlabel('Time (s)')
     ax1.set_ylabel('Amplitude')
-    ax1.set_title('Original Signal: sin(10*2*π*t)')
+    ax1.set_title('TDS')
     ax1.grid(True)
     
     # Plot FFT magnitude spectrum
